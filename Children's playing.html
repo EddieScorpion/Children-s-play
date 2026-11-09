@@ -1,0 +1,1495 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>🏰 小英雄奇幻遊樂園 - 遊戲大廳</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Noto+Sans+TC:wght@500;700;900&display=swap');
+
+        body {
+            font-family: 'Fredoka', 'Noto Sans TC', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+
+        /* Card Hover Animations */
+        .game-card {
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .game-card:hover {
+            transform: translateY(-8px) scale(1.02);
+        }
+        .game-card:active {
+            transform: translateY(-2px) scale(0.98);
+        }
+
+        /* Keyframe Animations */
+        @keyframes bounceSlow {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+
+        @keyframes pulseGlow {
+            0%, 100% { filter: drop-shadow(0 0 8px rgba(250, 204, 21, 0.8)); transform: scale(1); }
+            50% { filter: drop-shadow(0 0 18px rgba(250, 204, 21, 1)); transform: scale(1.08); }
+        }
+
+        @keyframes plantBounce {
+            0%, 100% { transform: scale(1) translateY(0); }
+            50% { transform: scale(1.06) translateY(-4px); }
+        }
+
+        @keyframes monsterWalk {
+            0%, 100% { transform: translateY(0) rotate(-2deg); }
+            50% { transform: translateY(-4px) rotate(2deg); }
+        }
+
+        .animate-bounce-slow { animation: bounceSlow 2s infinite ease-in-out; }
+        .animate-pulse-glow { animation: pulseGlow 2s infinite ease-in-out; }
+        .animate-plant-bounce { animation: plantBounce 2.5s infinite ease-in-out; }
+        .animate-monster-walk { animation: monsterWalk 0.8s infinite ease-in-out; }
+
+        /* Lawn Checkerboard Pattern */
+        .lawn-cell-even { background-color: #86efac; }
+        .lawn-cell-odd { background-color: #4ade80; }
+        .lawn-cell-hover { background-color: #fef08a !important; border: 3px dashed #eab308; }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #fef3c7; }
+        ::-webkit-scrollbar-thumb { background: #22c55e; border-radius: 9999px; }
+
+        /* Certificate Print Styling */
+        @media print {
+            body * { visibility: hidden; }
+            #printable-certificate, #printable-certificate * { visibility: visible; }
+            #printable-certificate {
+                position: absolute; left: 0; top: 0; width: 100%; height: 100%;
+                border: none; box-shadow: none; background: white;
+            }
+            .no-print { display: none !important; }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-amber-100 via-sky-100 to-emerald-100 min-h-screen flex flex-col justify-between text-slate-800">
+
+    <!-- Confetti Fireworks Layer -->
+    <canvas id="confetti-canvas" class="fixed inset-0 pointer-events-none z-50"></canvas>
+
+    <!-- Toast Notification Banner -->
+    <div id="toast-banner" class="fixed top-16 left-1/2 -translate-x-1/2 bg-amber-400 text-amber-950 font-black px-6 py-3 rounded-2xl shadow-2xl border-4 border-white text-sm md:text-base z-50 transition-all duration-300 opacity-0 pointer-events-none translate-y-[-20px] flex items-center gap-2">
+        <span id="toast-text">✨ 更換頭像成功！</span>
+    </div>
+
+    <!-- GLOBAL NAVBAR (Visible in games) -->
+    <nav id="global-navbar" class="w-full bg-white/90 backdrop-blur-md shadow-md border-b-4 border-amber-300 px-4 py-2 flex items-center justify-between z-30 sticky top-0">
+        <div class="flex items-center gap-3">
+            <button onclick="showScreen('screen-lobby')" class="bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-500 hover:to-orange-500 active:scale-95 text-white font-black px-4 py-2 rounded-2xl shadow-md border-2 border-amber-200 transition-all flex items-center gap-2 text-sm md:text-base">
+                <span>🏠 返回大廳</span>
+            </button>
+            <div id="nav-game-title" class="font-black text-slate-700 text-sm md:text-lg hidden sm:block">
+                🏰 奇幻遊樂園
+            </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <!-- Player Badge & Stars Summary -->
+            <div class="flex items-center gap-2 bg-amber-50 px-3 py-1.5 rounded-2xl border-2 border-amber-300">
+                <div id="nav-avatar" class="w-8 h-8 rounded-full bg-amber-200 border-2 border-amber-400 flex items-center justify-center text-xl overflow-hidden shadow-inner">
+                    🦁
+                </div>
+                <span id="nav-player-name" class="font-black text-amber-950 text-xs md:text-sm">小勇士</span>
+                <div class="flex items-center gap-1 bg-amber-300 text-amber-950 px-2 py-0.5 rounded-full font-black text-xs md:text-sm">
+                    ⭐ <span id="global-star-count">0</span>
+                </div>
+            </div>
+
+            <!-- Audio Toggle -->
+            <button id="btn-sound-toggle" onclick="toggleSound()" class="bg-sky-400 hover:bg-sky-500 active:scale-95 text-white font-bold p-2 rounded-2xl shadow border-2 border-sky-200 transition-all">
+                <span id="sound-icon" class="text-xl">🔊</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- SCREEN 1: MAIN LOBBY (遊戲大廳) -->
+    <div id="screen-lobby" class="flex-1 w-full max-w-5xl mx-auto px-4 py-6 flex flex-col justify-between">
+        
+        <!-- Header Banner & Hero Profile Setup -->
+        <header class="bg-white/90 backdrop-blur-md rounded-3xl p-5 shadow-xl border-4 border-amber-300 mb-6 flex flex-col md:flex-row items-center justify-between gap-4">
+            
+            <div class="flex items-center gap-4">
+                <!-- Avatar Selector Trigger -->
+                <div onclick="openAvatarModal()" class="relative group cursor-pointer" title="點擊切換照片頭像">
+                    <div id="lobby-avatar-display" class="w-20 h-20 md:w-24 md:h-24 bg-gradient-to-tr from-amber-300 to-yellow-200 rounded-3xl border-4 border-amber-400 shadow-md flex items-center justify-center text-4xl md:text-5xl animate-bounce-slow overflow-hidden relative">
+                        🦁
+                    </div>
+                    <div class="absolute -bottom-2 -right-2 bg-amber-500 text-white p-1.5 rounded-full text-xs font-black shadow-md border-2 border-white group-hover:scale-110 transition-transform">
+                        📷 換圖
+                    </div>
+                </div>
+
+                <div>
+                    <div id="name-setting-container" class="flex flex-wrap items-center gap-2">
+                        <select id="player-name-select" onchange="handleNameSelectChange(this.value)" class="font-black text-base md:text-lg text-amber-950 bg-amber-50 border-2 border-amber-400 rounded-xl px-3 py-1.5 focus:outline-none focus:bg-amber-100 shadow-sm cursor-pointer">
+                            <option value="小明">小明</option>
+                            <option value="小蠍">小蠍</option>
+                            <option value="大名">大名</option>
+                            <option value="custom">✍️ 自訂姓名</option>
+                        </select>
+
+                        <input id="player-name-custom" type="text" placeholder="輸入自訂名字" class="hidden font-black text-base md:text-lg text-amber-950 bg-white border-2 border-amber-400 rounded-xl px-3 py-1.5 focus:outline-none w-32 md:w-40 shadow-sm">
+
+                        <button id="btn-lock-name" onclick="lockPlayerName()" class="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-black text-xs md:text-sm px-3.5 py-2 rounded-xl shadow-md border-2 border-amber-200 active:scale-95 transition-all flex items-center gap-1">
+                            🔒 確定鎖定
+                        </button>
+                        
+                        <div id="name-locked-badge" class="hidden bg-emerald-100 text-emerald-900 font-black text-xs md:text-sm px-3 py-1.5 rounded-xl border-2 border-emerald-400 flex items-center gap-1 shadow-sm">
+                            🔒 姓名已鎖定（無法再次修改）
+                        </div>
+                    </div>
+                    <p id="name-help-text" class="text-xs md:text-sm text-slate-500 font-bold mt-1">歡迎來到冒險王國！請選擇名字並點擊確定鎖定喔！</p>
+                </div>
+            </div>
+
+            <!-- Avatar Pick Controls & Star Count -->
+            <div class="flex flex-col items-end gap-2 w-full md:w-auto">
+                <div class="flex flex-wrap items-center gap-2 bg-amber-100 p-2.5 rounded-2xl border-2 border-amber-300 w-full md:w-auto justify-center">
+                    <button onclick="openAvatarModal()" class="bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-black text-xs px-3 py-1.5 rounded-xl shadow transition-all flex items-center gap-1">
+                        📷 上傳自訂照片
+                    </button>
+                    <span class="text-xs font-bold text-amber-900 border-l border-amber-300 pl-2">快速選擇：</span>
+                    <button onclick="setAvatar('emoji', '🦁')" class="text-2xl hover:scale-125 transition-transform p-0.5">🦁</button>
+                    <button onclick="setAvatar('emoji', '🐰')" class="text-2xl hover:scale-125 transition-transform p-0.5">🐰</button>
+                    <button onclick="setAvatar('emoji', '🐱')" class="text-2xl hover:scale-125 transition-transform p-0.5">🐱</button>
+                    <button onclick="setAvatar('emoji', '🐶')" class="text-2xl hover:scale-125 transition-transform p-0.5">🐶</button>
+                </div>
+
+                <!-- Badges Display -->
+                <div class="flex items-center gap-2 text-xs font-bold text-slate-600 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-300">
+                    <span>🎖️ 已獲得勳章：</span>
+                    <div id="lobby-badges-list" class="flex items-center gap-1">
+                        <span class="opacity-30">🌻</span>
+                        <span class="opacity-30">🎹</span>
+                        <span class="opacity-30">🎈</span>
+                    </div>
+                </div>
+            </div>
+
+        </header>
+
+        <!-- Mini-Game Arcade Selection Grid -->
+        <main class="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1">
+            
+            <!-- Game Card 1: Plants vs Monsters Garden Defense -->
+            <div onclick="showScreen('screen-pvz')" class="game-card bg-gradient-to-br from-emerald-400 to-teal-500 rounded-3xl p-6 text-white shadow-xl border-4 border-emerald-300 cursor-pointer flex flex-col justify-between relative overflow-hidden group">
+                <div class="absolute -right-6 -bottom-6 text-8xl opacity-20 group-hover:scale-110 transition-transform">🌻</div>
+                <div>
+                    <div class="flex justify-between items-start mb-2">
+                        <span class="bg-white/30 backdrop-blur-md px-3 py-1 rounded-full text-xs font-black">策略塔防</span>
+                        <span id="badge-pvz-status" class="bg-amber-300 text-amber-950 text-xs font-black px-2.5 py-1 rounded-full">⭐ 3 顆星目標</span>
+                    </div>
+                    <h2 class="text-2xl md:text-3xl font-black mb-2 flex items-center gap-2">
+                        <span>🌱</span> 植物保衛戰
+                    </h2>
+                    <p class="text-xs md:text-sm text-emerald-100 font-bold leading-relaxed">
+                        佈署太陽花與豌豆射手，擊退入侵可愛花園的泥巴怪與萌萌殭屍！
+                    </p>
+                </div>
+                <div class="mt-6 flex items-center justify-between">
+                    <span class="text-xs font-black bg-white/20 px-3 py-1.5 rounded-xl">超慢速怪物・兒童安心設計</span>
+                    <button class="bg-white text-emerald-800 font-black px-5 py-2 rounded-2xl shadow-md group-hover:bg-amber-300 group-hover:text-amber-950 transition-colors">
+                        開始遊戲 ▶
+                    </button>
+                </div>
+            </div>
+
+            <!-- Game Card 2: Rainbow Piano -->
+            <div onclick="showScreen('screen-piano')" class="game-card bg-gradient-to-br from-sky-400 to-indigo-500 rounded-3xl p-6 text-white shadow-xl border-4 border-sky-300 cursor-pointer flex flex-col justify-between relative overflow-hidden group">
+                <div class="absolute -right-6 -bottom-6 text-8xl opacity-20 group-hover:scale-110 transition-transform">🎹</div>
+                <div>
+                    <div class="flex justify-between items-start mb-2">
+                        <span class="bg-white/30 backdrop-blur-md px-3 py-1 rounded-full text-xs font-black">音樂旋律</span>
+                        <span id="badge-piano-status" class="bg-amber-300 text-amber-950 text-xs font-black px-2.5 py-1 rounded-full">⭐ 3 顆星目標</span>
+                    </div>
+                    <h2 class="text-2xl md:text-3xl font-black mb-2 flex items-center gap-2">
+                        <span>🎹</span> 彩虹小鋼琴
+                    </h2>
+                    <p class="text-xs md:text-sm text-sky-100 font-bold leading-relaxed">
+                        彈奏七彩鋼琴鍵，跟著發光的導引符號合奏《小星星》與《歡樂頌》！
+                    </p>
+                </div>
+                <div class="mt-6 flex items-center justify-between">
+                    <span class="text-xs font-black bg-white/20 px-3 py-1.5 rounded-xl">琴聲合奏・自由彈奏</span>
+                    <button class="bg-white text-sky-800 font-black px-5 py-2 rounded-2xl shadow-md group-hover:bg-amber-300 group-hover:text-amber-950 transition-colors">
+                        開始彈奏 ▶
+                    </button>
+                </div>
+            </div>
+
+            <!-- Game Card 3: Balloon Pop Party -->
+            <div onclick="showScreen('screen-balloon')" class="game-card bg-gradient-to-br from-pink-400 to-rose-500 rounded-3xl p-6 text-white shadow-xl border-4 border-pink-300 cursor-pointer flex flex-col justify-between relative overflow-hidden group">
+                <div class="absolute -right-6 -bottom-6 text-8xl opacity-20 group-hover:scale-110 transition-transform">🎈</div>
+                <div>
+                    <div class="flex justify-between items-start mb-2">
+                        <span class="bg-white/30 backdrop-blur-md px-3 py-1 rounded-full text-xs font-black">反應手速</span>
+                        <span id="badge-balloon-status" class="bg-amber-300 text-amber-950 text-xs font-black px-2.5 py-1 rounded-full">⭐ 3 顆星目標</span>
+                    </div>
+                    <h2 class="text-2xl md:text-3xl font-black mb-2 flex items-center gap-2">
+                        <span>🎈</span> 夢幻戳氣球
+                    </h2>
+                    <p class="text-xs md:text-sm text-pink-100 font-bold leading-relaxed">
+                        手指輕輕戳破飄浮的繽紛氣球，聽聽歡樂啵啵聲與驚喜讚美！
+                    </p>
+                </div>
+                <div class="mt-6 flex items-center justify-between">
+                    <span class="text-xs font-black bg-white/20 px-3 py-1.5 rounded-xl">歡樂解壓・滿滿成就感</span>
+                    <button class="bg-white text-rose-800 font-black px-5 py-2 rounded-2xl shadow-md group-hover:bg-amber-300 group-hover:text-amber-950 transition-colors">
+                        開始戳氣球 ▶
+                    </button>
+                </div>
+            </div>
+
+            <!-- Game Card 4: Hero Certificate Hub -->
+            <div onclick="showScreen('screen-certificate')" class="game-card bg-gradient-to-br from-amber-400 to-yellow-500 rounded-3xl p-6 text-amber-950 shadow-xl border-4 border-yellow-300 cursor-pointer flex flex-col justify-between relative overflow-hidden group">
+                <div class="absolute -right-6 -bottom-6 text-8xl opacity-20 group-hover:scale-110 transition-transform">🏆</div>
+                <div>
+                    <div class="flex justify-between items-start mb-2">
+                        <span class="bg-amber-950/20 backdrop-blur-md px-3 py-1 rounded-full text-xs font-black">榮譽頒獎</span>
+                        <span class="bg-white text-amber-900 text-xs font-black px-2.5 py-1 rounded-full">🏆 隨時列印保存</span>
+                    </div>
+                    <h2 class="text-2xl md:text-3xl font-black mb-2 flex items-center gap-2">
+                        <span>🏆</span> 榮譽大獎狀
+                    </h2>
+                    <p class="text-xs md:text-sm text-amber-900 font-bold leading-relaxed">
+                        檢視獲得的成就勳章與星星，可自訂姓名並列印專屬小英雄證書！
+                    </p>
+                </div>
+                <div class="mt-6 flex items-center justify-between">
+                    <span class="text-xs font-black bg-white/40 px-3 py-1.5 rounded-xl">專屬頒獎典禮</span>
+                    <button class="bg-amber-950 text-white font-black px-5 py-2 rounded-2xl shadow-md group-hover:bg-white group-hover:text-amber-950 transition-colors">
+                        查看獎狀 📜
+                    </button>
+                </div>
+            </div>
+
+        </main>
+
+        <footer class="mt-6 text-center text-xs text-slate-500 font-bold">
+            💖 專為小朋友設計的歡樂遊樂園 | 無懲罰設計・滿滿成就感
+        </footer>
+    </div>
+
+
+    <!-- SCREEN 2: PLANTS VS MONSTERS GAME (植物保衛戰) -->
+    <div id="screen-pvz" class="screen-view hidden flex-1 w-full max-w-4xl mx-auto px-2 md:px-4 py-4 flex flex-col justify-between">
+        
+        <!-- Plant Cards Toolbar & Sun Counter -->
+        <div class="bg-amber-100/90 backdrop-blur-md rounded-2xl p-2 md:p-3 border-4 border-amber-300 shadow-xl mb-3 flex flex-wrap items-center justify-between gap-2">
+            
+            <div class="flex items-center gap-2 bg-gradient-to-r from-amber-300 to-yellow-400 text-amber-950 px-3 md:px-4 py-2 rounded-2xl shadow-inner border-2 border-amber-200">
+                <span class="text-2xl md:text-3xl animate-pulse-glow">☀️</span>
+                <span id="sun-count" class="text-xl md:text-2xl font-black">100</span>
+            </div>
+
+            <!-- Seed Cards -->
+            <div class="flex items-center gap-1.5 md:gap-3 overflow-x-auto py-1">
+                <div id="card-sunflower" onclick="selectCard('sunflower')" class="seed-card cursor-pointer bg-white hover:bg-amber-50 active:scale-95 p-1.5 rounded-2xl border-3 border-emerald-400 shadow flex flex-col items-center min-w-[70px] md:min-w-[80px] transition-all">
+                    <span class="text-2xl md:text-3xl">🌻</span>
+                    <span class="text-[11px] font-black text-slate-700">太陽花</span>
+                    <span class="bg-amber-300 text-amber-950 text-[10px] font-black px-2 py-0.5 rounded-full mt-0.5">☀️ 50</span>
+                </div>
+                <div id="card-peashooter" onclick="selectCard('peashooter')" class="seed-card cursor-pointer bg-white hover:bg-amber-50 active:scale-95 p-1.5 rounded-2xl border-3 border-emerald-400 shadow flex flex-col items-center min-w-[70px] md:min-w-[80px] transition-all">
+                    <span class="text-2xl md:text-3xl">🌸</span>
+                    <span class="text-[11px] font-black text-slate-700">豌豆射手</span>
+                    <span class="bg-amber-300 text-amber-950 text-[10px] font-black px-2 py-0.5 rounded-full mt-0.5">☀️ 100</span>
+                </div>
+                <div id="card-wallnut" onclick="selectCard('wallnut')" class="seed-card cursor-pointer bg-white hover:bg-amber-50 active:scale-95 p-1.5 rounded-2xl border-3 border-emerald-400 shadow flex flex-col items-center min-w-[70px] md:min-w-[80px] transition-all">
+                    <span class="text-2xl md:text-3xl">🌰</span>
+                    <span class="text-[11px] font-black text-slate-700">堅果牆</span>
+                    <span class="bg-amber-300 text-amber-950 text-[10px] font-black px-2 py-0.5 rounded-full mt-0.5">☀️ 50</span>
+                </div>
+                <div id="card-cherrybomb" onclick="selectCard('cherrybomb')" class="seed-card cursor-pointer bg-white hover:bg-amber-50 active:scale-95 p-1.5 rounded-2xl border-3 border-emerald-400 shadow flex flex-col items-center min-w-[70px] md:min-w-[80px] transition-all">
+                    <span class="text-2xl md:text-3xl">💣</span>
+                    <span class="text-[11px] font-black text-slate-700">櫻桃炸彈</span>
+                    <span class="bg-amber-300 text-amber-950 text-[10px] font-black px-2 py-0.5 rounded-full mt-0.5">☀️ 150</span>
+                </div>
+                <div id="card-shovel" onclick="selectCard('shovel')" class="seed-card cursor-pointer bg-white hover:bg-rose-50 active:scale-95 p-1.5 rounded-2xl border-3 border-slate-300 shadow flex flex-col items-center min-w-[60px] md:min-w-[70px] transition-all">
+                    <span class="text-2xl md:text-3xl">🪏</span>
+                    <span class="text-[11px] font-black text-slate-700">鏟子</span>
+                    <span class="bg-slate-200 text-slate-700 text-[10px] font-black px-1.5 py-0.5 rounded-full mt-0.5">清除</span>
+                </div>
+            </div>
+
+            <!-- Wave Progress -->
+            <div class="flex-1 min-w-[140px] bg-white/80 p-2 rounded-2xl border-2 border-emerald-200 shadow-inner flex flex-col justify-center">
+                <div class="flex justify-between items-center text-[11px] font-black text-slate-600 mb-1">
+                    <span>👾 怪物進攻波次</span>
+                    <span id="wave-text" class="text-emerald-700 font-bold">第 1 波</span>
+                </div>
+                <div class="w-full bg-slate-200 h-3.5 rounded-full overflow-hidden border border-slate-300">
+                    <div id="wave-progress-bar" class="bg-gradient-to-r from-emerald-400 to-emerald-600 h-full w-0 transition-all duration-300"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lawn Battle Stage -->
+        <div class="bg-emerald-800 p-2 md:p-3 rounded-3xl shadow-2xl border-4 border-emerald-900 relative overflow-hidden">
+            <div class="flex items-center justify-between relative">
+                
+                <!-- Lawnmowers Column -->
+                <div id="mower-column" class="flex flex-col gap-1 md:gap-2 mr-1 z-10">
+                    <div id="mower-0" class="w-10 h-16 md:w-14 md:h-20 bg-amber-200 rounded-xl border-2 border-amber-400 shadow-md flex items-center justify-center text-xl md:text-2xl transition-all">🚜</div>
+                    <div id="mower-1" class="w-10 h-16 md:w-14 md:h-20 bg-amber-200 rounded-xl border-2 border-amber-400 shadow-md flex items-center justify-center text-xl md:text-2xl transition-all">🚜</div>
+                    <div id="mower-2" class="w-10 h-16 md:w-14 md:h-20 bg-amber-200 rounded-xl border-2 border-amber-400 shadow-md flex items-center justify-center text-xl md:text-2xl transition-all">🚜</div>
+                    <div id="mower-3" class="w-10 h-16 md:w-14 md:h-20 bg-amber-200 rounded-xl border-2 border-amber-400 shadow-md flex items-center justify-center text-xl md:text-2xl transition-all">🚜</div>
+                </div>
+
+                <!-- 4x6 Lawn Grid -->
+                <div id="lawn-grid" class="grid grid-cols-6 grid-rows-4 gap-1 md:gap-2 flex-1 h-[280px] md:h-[360px] relative touch-none z-10"></div>
+
+                <!-- Entity Overlay Layer (Monsters, Peas, Floating Suns) -->
+                <div id="entity-layer" class="absolute inset-0 pointer-events-none overflow-hidden z-20"></div>
+            </div>
+        </div>
+
+    </div>
+
+
+    <!-- SCREEN 3: RAINBOW PIANO GAME (彩虹小鋼琴) -->
+    <div id="screen-piano" class="screen-view hidden flex-1 w-full max-w-4xl mx-auto px-4 py-4 flex flex-col justify-between">
+        
+        <div class="bg-white/90 backdrop-blur-md rounded-3xl p-4 shadow-xl border-4 border-sky-300 text-center mb-4">
+            <h2 class="text-2xl font-black text-sky-800 mb-1">🎹 彩虹小鋼琴合奏</h2>
+            <p class="text-xs text-slate-500 font-bold mb-3">點擊琴鍵彈奏琴音，跟著發光的琴鍵練習名曲吧！</p>
+
+            <!-- Song Mode Selector -->
+            <div class="flex flex-wrap justify-center gap-2">
+                <button onclick="startPianoSong('star')" class="bg-amber-400 hover:bg-amber-500 text-amber-950 font-black px-4 py-2 rounded-2xl shadow border-2 border-amber-200 text-xs md:text-sm active:scale-95 transition-all">
+                    ⭐ 跟彈《小星星》
+                </button>
+                <button onclick="startPianoSong('joy')" class="bg-emerald-400 hover:bg-emerald-500 text-emerald-950 font-black px-4 py-2 rounded-2xl shadow border-2 border-emerald-200 text-xs md:text-sm active:scale-95 transition-all">
+                    🎶 跟彈《歡樂頌》
+                </button>
+                <button onclick="startPianoSong('free')" class="bg-sky-400 hover:bg-sky-500 text-white font-black px-4 py-2 rounded-2xl shadow border-2 border-sky-200 text-xs md:text-sm active:scale-95 transition-all">
+                    🌈 自由彈奏模式
+                </button>
+            </div>
+        </div>
+
+        <!-- Target Guide Note Display -->
+        <div class="bg-sky-50 rounded-2xl p-4 border-2 border-sky-200 text-center mb-4 flex flex-col items-center justify-center min-h-[90px]">
+            <span class="text-xs text-sky-600 font-bold mb-1">當前提示音符：</span>
+            <div id="piano-target-display" class="text-3xl font-black text-sky-900 animate-pulse">
+                自由彈奏中 🎵
+            </div>
+        </div>
+
+        <!-- 8 Rainbow Piano Keys -->
+        <div class="bg-slate-800 p-4 rounded-3xl shadow-2xl border-4 border-slate-900 flex justify-center items-end gap-1.5 md:gap-3 h-[260px] md:h-[320px]">
+            <button onclick="playPianoKey(0)" id="key-0" class="piano-key flex-1 h-full bg-rose-400 hover:bg-rose-500 rounded-b-2xl border-4 border-rose-300 shadow-lg flex flex-col justify-end items-center pb-4 active:scale-95 transition-all">
+                <span class="text-white font-black text-lg md:text-2xl">Do</span>
+                <span class="text-rose-100 font-bold text-xs">C4</span>
+            </button>
+            <button onclick="playPianoKey(1)" id="key-1" class="piano-key flex-1 h-full bg-orange-400 hover:bg-orange-500 rounded-b-2xl border-4 border-orange-300 shadow-lg flex flex-col justify-end items-center pb-4 active:scale-95 transition-all">
+                <span class="text-white font-black text-lg md:text-2xl">Re</span>
+                <span class="text-orange-100 font-bold text-xs">D4</span>
+            </button>
+            <button onclick="playPianoKey(2)" id="key-2" class="piano-key flex-1 h-full bg-amber-400 hover:bg-amber-500 rounded-b-2xl border-4 border-amber-300 shadow-lg flex flex-col justify-end items-center pb-4 active:scale-95 transition-all">
+                <span class="text-white font-black text-lg md:text-2xl">Mi</span>
+                <span class="text-amber-100 font-bold text-xs">E4</span>
+            </button>
+            <button onclick="playPianoKey(3)" id="key-3" class="piano-key flex-1 h-full bg-emerald-400 hover:bg-emerald-500 rounded-b-2xl border-4 border-emerald-300 shadow-lg flex flex-col justify-end items-center pb-4 active:scale-95 transition-all">
+                <span class="text-white font-black text-lg md:text-2xl">Fa</span>
+                <span class="text-emerald-100 font-bold text-xs">F4</span>
+            </button>
+            <button onclick="playPianoKey(4)" id="key-4" class="piano-key flex-1 h-full bg-teal-400 hover:bg-teal-500 rounded-b-2xl border-4 border-teal-300 shadow-lg flex flex-col justify-end items-center pb-4 active:scale-95 transition-all">
+                <span class="text-white font-black text-lg md:text-2xl">Sol</span>
+                <span class="text-teal-100 font-bold text-xs">G4</span>
+            </button>
+            <button onclick="playPianoKey(5)" id="key-5" class="piano-key flex-1 h-full bg-sky-400 hover:bg-sky-500 rounded-b-2xl border-4 border-sky-300 shadow-lg flex flex-col justify-end items-center pb-4 active:scale-95 transition-all">
+                <span class="text-white font-black text-lg md:text-2xl">La</span>
+                <span class="text-sky-100 font-bold text-xs">A4</span>
+            </button>
+            <button onclick="playPianoKey(6)" id="key-6" class="piano-key flex-1 h-full bg-indigo-400 hover:bg-indigo-500 rounded-b-2xl border-4 border-indigo-300 shadow-lg flex flex-col justify-end items-center pb-4 active:scale-95 transition-all">
+                <span class="text-white font-black text-lg md:text-2xl">Ti</span>
+                <span class="text-indigo-100 font-bold text-xs">B4</span>
+            </button>
+            <button onclick="playPianoKey(7)" id="key-7" class="piano-key flex-1 h-full bg-purple-400 hover:bg-purple-500 rounded-b-2xl border-4 border-purple-300 shadow-lg flex flex-col justify-end items-center pb-4 active:scale-95 transition-all">
+                <span class="text-white font-black text-lg md:text-2xl">Do</span>
+                <span class="text-purple-100 font-bold text-xs">C5</span>
+            </button>
+        </div>
+
+    </div>
+
+
+    <!-- SCREEN 4: BALLOON POP GAME (夢幻戳氣球) -->
+    <div id="screen-balloon" class="screen-view hidden flex-1 w-full max-w-4xl mx-auto px-4 py-4 flex flex-col justify-between">
+        
+        <!-- Score Bar -->
+        <div class="bg-white/90 backdrop-blur-md rounded-3xl p-3 shadow-xl border-4 border-pink-300 flex justify-between items-center mb-3">
+            <div class="flex items-center gap-2">
+                <span class="text-3xl">🎈</span>
+                <div>
+                    <h2 class="text-lg font-black text-pink-700">夢幻戳氣球</h2>
+                    <p class="text-xs text-slate-500 font-bold">點擊戳破飄浮氣球！</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <div class="bg-pink-100 px-4 py-1.5 rounded-2xl border-2 border-pink-300 font-black text-pink-900 text-sm md:text-base">
+                    已戳破：<span id="balloon-score" class="text-xl text-pink-600">0</span> / 15 🎈
+                </div>
+            </div>
+        </div>
+
+        <!-- Floating Balloon Arena Stage -->
+        <div id="balloon-stage" class="bg-gradient-to-b from-sky-200 via-pink-100 to-amber-100 rounded-3xl h-[420px] shadow-2xl border-4 border-pink-300 relative overflow-hidden cursor-pointer">
+            <!-- Dynamic Balloons spawn here -->
+        </div>
+
+    </div>
+
+
+    <!-- SCREEN 5: HERO CERTIFICATE (榮譽大獎狀) -->
+    <div id="screen-certificate" class="screen-view hidden flex-1 w-full max-w-2xl mx-auto px-4 py-4 flex flex-col items-center justify-center">
+        
+        <div id="printable-certificate" class="bg-gradient-to-br from-amber-50 via-white to-emerald-50 rounded-3xl p-6 md:p-8 w-full border-8 border-emerald-400 shadow-2xl text-center relative my-auto">
+            
+            <div class="absolute -top-6 left-1/2 -translate-x-1/2 bg-emerald-600 text-white font-black px-6 py-2 rounded-full shadow-lg border-2 border-emerald-300 text-base md:text-lg flex items-center gap-2">
+                🏆 榮譽大獎狀 🏆
+            </div>
+
+            <div class="mt-4 mb-2 text-6xl flex justify-center">
+                <div id="cert-avatar-frame" class="w-20 h-20 md:w-24 md:h-24 rounded-full bg-gradient-to-tr from-amber-300 to-yellow-200 border-4 border-amber-400 shadow-lg flex items-center justify-center overflow-hidden">
+                    <span id="cert-hero-avatar" class="text-4xl md:text-5xl">🦁</span>
+                </div>
+            </div>
+
+            <h2 class="text-2xl md:text-3xl font-black text-emerald-950 tracking-wide mb-1">小英雄大滿貫榮譽證書</h2>
+            <p class="text-xs text-emerald-700 font-bold mb-6">HERO CHAMPION GRAND CERTIFICATE</p>
+
+            <div class="text-base md:text-xl font-bold text-slate-700 mb-6 leading-relaxed">
+                茲證明勇敢的小英雄 <span id="cert-hero-name" class="font-black text-amber-600 underline decoration-amber-400 underline-offset-4 px-2">小勇士</span><br>
+                在冒險遊樂園中勇往直前，成功獲得 <span id="cert-star-count" class="font-black text-amber-500 text-2xl">0</span> 顆榮譽星星！
+            </div>
+
+            <div class="flex justify-center gap-4 mb-6">
+                <div id="cert-badge-pvz" class="bg-white p-3 rounded-2xl border-2 border-emerald-200 shadow text-center min-w-[80px]">
+                    <div class="text-3xl mb-1">🌻</div>
+                    <div class="text-[10px] font-black text-emerald-800">花園守護者</div>
+                </div>
+                <div id="cert-badge-piano" class="bg-white p-3 rounded-2xl border-2 border-sky-200 shadow text-center min-w-[80px]">
+                    <div class="text-3xl mb-1">🎹</div>
+                    <div class="text-[10px] font-black text-sky-800">小小鋼琴家</div>
+                </div>
+                <div id="cert-badge-balloon" class="bg-white p-3 rounded-2xl border-2 border-pink-200 shadow text-center min-w-[80px]">
+                    <div class="text-3xl mb-1">🎈</div>
+                    <div class="text-[10px] font-black text-pink-800">氣球達人</div>
+                </div>
+            </div>
+
+            <div class="flex justify-between items-center border-t-2 border-dashed border-emerald-200 pt-4 text-xs font-bold text-slate-500">
+                <div>頒發日期：<span id="cert-date">2023/10/25</span></div>
+                <div>小英雄遊樂園 頒發 🎖️</div>
+            </div>
+
+            <div class="no-print mt-6 flex justify-center gap-3">
+                <button onclick="window.print()" class="bg-amber-500 hover:bg-amber-600 text-white font-black px-6 py-2.5 rounded-2xl shadow-lg border-2 border-amber-300 active:scale-95 transition-all flex items-center gap-2 text-sm">
+                    🖨️ 列印 / 保存大獎狀
+                </button>
+                <button onclick="showScreen('screen-lobby')" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-black px-5 py-2.5 rounded-2xl shadow active:scale-95 transition-all text-sm">
+                    🏠 返回大廳
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- AVATAR UPLOAD & SELECTION MODAL -->
+    <div id="modal-avatar" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-3xl p-6 max-w-md w-full border-4 border-amber-400 shadow-2xl relative">
+            <button onclick="closeAvatarModal()" class="absolute top-4 right-4 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-full w-8 h-8 font-black flex items-center justify-center">✕</button>
+            
+            <h3 class="text-2xl font-black text-amber-950 mb-1 flex items-center gap-2">
+                <span>📷</span> 設定英雄頭像
+            </h3>
+            <p class="text-xs text-slate-500 font-bold mb-4">上傳小朋友的真實照片或選擇喜愛的英雄風格！</p>
+
+            <!-- Hidden File Input -->
+            <input type="file" id="avatarFileInput" accept="image/*" class="hidden" onchange="handleFileUpload(event)">
+
+            <!-- Upload Area & Drag-Drop Zone -->
+            <div id="drag-drop-zone" 
+                 onclick="document.getElementById('avatarFileInput').click()"
+                 ondragover="handleDragOver(event)"
+                 ondragleave="handleDragLeave(event)"
+                 ondrop="handleFileDrop(event)"
+                 class="border-3 border-dashed border-amber-400 bg-amber-50 hover:bg-amber-100 rounded-2xl p-5 text-center cursor-pointer transition-all mb-4 group">
+                <div class="text-4xl mb-1 group-hover:scale-110 transition-transform">📸</div>
+                <div class="font-black text-amber-900 text-sm md:text-base">點擊此處選擇照片或拖曳照片到這裡</div>
+                <div class="text-[11px] text-amber-700 font-bold mt-1">支援 JPG, PNG, WEBP 相片格式</div>
+            </div>
+
+            <!-- Fallback Hero Photo Gallery -->
+            <div class="mb-4">
+                <div class="text-xs font-black text-slate-600 mb-2 flex items-center justify-between">
+                    <span>🌟 造型頭像預設藝廊：</span>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                    <button onclick="setAvatar('emoji', '🦸')" class="bg-amber-100 hover:bg-amber-200 p-2 rounded-xl text-center border border-amber-300 active:scale-95 transition-all">
+                        <span class="text-2xl block">🦸</span>
+                        <span class="text-[10px] font-bold text-amber-900">小英雄</span>
+                    </button>
+                    <button onclick="setAvatar('emoji', '🚀')" class="bg-amber-100 hover:bg-amber-200 p-2 rounded-xl text-center border border-amber-300 active:scale-95 transition-all">
+                        <span class="text-2xl block">🚀</span>
+                        <span class="text-[10px] font-bold text-amber-900">宇航員</span>
+                    </button>
+                    <button onclick="setAvatar('emoji', '👑')" class="bg-amber-100 hover:bg-amber-200 p-2 rounded-xl text-center border border-amber-300 active:scale-95 transition-all">
+                        <span class="text-2xl block">👑</span>
+                        <span class="text-[10px] font-bold text-amber-900">魔法公主</span>
+                    </button>
+                    <button onclick="setAvatar('emoji', '🦖')" class="bg-amber-100 hover:bg-amber-200 p-2 rounded-xl text-center border border-amber-300 active:scale-95 transition-all">
+                        <span class="text-2xl block">🦖</span>
+                        <span class="text-[10px] font-bold text-amber-900">恐龍騎士</span>
+                    </button>
+                    <button onclick="setAvatar('emoji', '👨‍🍳')" class="bg-amber-100 hover:bg-amber-200 p-2 rounded-xl text-center border border-amber-300 active:scale-95 transition-all">
+                        <span class="text-2xl block">👨‍🍳</span>
+                        <span class="text-[10px] font-bold text-amber-900">小廚師</span>
+                    </button>
+                    <button onclick="setAvatar('emoji', '🕵️')" class="bg-amber-100 hover:bg-amber-200 p-2 rounded-xl text-center border border-amber-300 active:scale-95 transition-all">
+                        <span class="text-2xl block">🕵️</span>
+                        <span class="text-[10px] font-bold text-amber-900">探險家</span>
+                    </button>
+                </div>
+            </div>
+
+            <button onclick="closeAvatarModal()" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-black py-2.5 rounded-2xl shadow active:scale-95 transition-all text-sm">
+                完成設定 👍
+            </button>
+        </div>
+    </div>
+
+    <!-- VICTORY MODAL FOR MINI GAMES -->
+    <div id="modal-victory" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-3xl p-6 max-w-sm w-full text-center border-4 border-amber-400 shadow-2xl animate-bounce-slow">
+            <div class="text-6xl mb-2">🏆</div>
+            <h3 id="victory-title" class="text-2xl font-black text-slate-800 mb-1">闖關成功！</h3>
+            <p id="victory-desc" class="text-xs font-bold text-slate-500 mb-4">太棒了！獲得 3 顆榮譽星星！</p>
+            
+            <div class="flex justify-center gap-2 text-4xl mb-4">
+                <span class="animate-bounce">⭐</span>
+                <span class="animate-bounce" style="animation-delay: 0.15s">⭐</span>
+                <span class="animate-bounce" style="animation-delay: 0.3s">⭐</span>
+            </div>
+
+            <div class="flex flex-col gap-2">
+                <button onclick="showScreen('screen-certificate')" class="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-black text-base py-3 rounded-2xl shadow-lg active:scale-95 transition-all">
+                    領取榮譽大獎狀 📜
+                </button>
+                <button onclick="showScreen('screen-lobby')" class="w-full bg-slate-200 hover:bg-slate-300 text-slate-700 font-black text-sm py-2.5 rounded-2xl shadow active:scale-95 transition-all">
+                    返回遊戲大廳 🏠
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- APPLICATION LOGIC & SYNTH ENGINE -->
+    <script>
+        /* ==========================================================================
+           1. WEB AUDIO API SYNTHESIZER
+           ========================================================================== */
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        let audioCtx = null;
+        let soundEnabled = true;
+
+        function initAudio() {
+            if (!audioCtx) audioCtx = new AudioContext();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            document.getElementById('sound-icon').textContent = soundEnabled ? '🔊' : '🔇';
+            if (soundEnabled) playSound('click');
+        }
+
+        const PIANO_NOTES = [261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25]; // C4-C5
+
+        function playSound(type, keyIdx = 0) {
+            if (!soundEnabled) return;
+            initAudio();
+            if (!audioCtx) return;
+            const now = audioCtx.currentTime;
+
+            if (type === 'click') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(600, now);
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.start(now); osc.stop(now + 0.05);
+            } else if (type === 'piano') {
+                const freq = PIANO_NOTES[keyIdx] || 261.63;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(freq, now);
+                gain.gain.setValueAtTime(0.4, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.8);
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.start(now); osc.stop(now + 0.8);
+            } else if (type === 'pop') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, now);
+                osc.frequency.exponentialRampToValueAtTime(200, now + 0.1);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.start(now); osc.stop(now + 0.1);
+            } else if (type === 'sun') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(987.77, now);
+                osc.frequency.exponentialRampToValueAtTime(1318.51, now + 0.15);
+                gain.gain.setValueAtTime(0.25, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.start(now); osc.stop(now + 0.15);
+            } else if (type === 'plant') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(300, now);
+                osc.frequency.exponentialRampToValueAtTime(120, now + 0.12);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.start(now); osc.stop(now + 0.12);
+            } else if (type === 'shoot') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(400, now);
+                osc.frequency.exponentialRampToValueAtTime(800, now + 0.08);
+                gain.gain.setValueAtTime(0.12, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.start(now); osc.stop(now + 0.08);
+            } else if (type === 'boom') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150, now);
+                osc.frequency.exponentialRampToValueAtTime(30, now + 0.4);
+                gain.gain.setValueAtTime(0.4, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.start(now); osc.stop(now + 0.4);
+            } else if (type === 'mower') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(120, now);
+                osc.frequency.linearRampToValueAtTime(240, now + 0.5);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.6);
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.start(now); osc.stop(now + 0.6);
+            } else if (type === 'win') {
+                [523.25, 659.25, 783.99, 1046.50].forEach((freq, idx) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, now + idx * 0.12);
+                    gain.gain.setValueAtTime(0.3, now + idx * 0.12);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + idx * 0.12 + 0.25);
+                    osc.connect(gain); gain.connect(audioCtx.destination);
+                    osc.start(now + idx * 0.12); osc.stop(now + idx * 0.12 + 0.25);
+                });
+            }
+        }
+
+
+        /* ==========================================================================
+           2. GLOBAL STATE & UI MANAGEMENT
+           ========================================================================== */
+        let playerProfile = {
+            name: '小明',
+            nameLocked: false,
+            avatarType: 'emoji', // 'emoji' or 'image'
+            avatarVal: '🦁',
+            stars: 0,
+            badges: {
+                pvz: false,
+                piano: false,
+                balloon: false
+            }
+        };
+
+        function handleNameSelectChange(val) {
+            if (playerProfile.nameLocked) return;
+            const customInput = document.getElementById('player-name-custom');
+            if (val === 'custom') {
+                customInput.classList.remove('hidden');
+                customInput.focus();
+            } else {
+                customInput.classList.add('hidden');
+                updatePlayerName(val);
+            }
+        }
+
+        function lockPlayerName() {
+            if (playerProfile.nameLocked) return;
+
+            const selectEl = document.getElementById('player-name-select');
+            const customInput = document.getElementById('player-name-custom');
+            let finalName = selectEl.value;
+
+            if (finalName === 'custom') {
+                finalName = customInput.value.trim();
+                if (!finalName) {
+                    showToast('⚠️ 請輸入有效的自訂姓名喔！');
+                    return;
+                }
+            }
+
+            playerProfile.name = finalName;
+            playerProfile.nameLocked = true;
+            updatePlayerName(finalName);
+
+            // Lock UI elements
+            selectEl.disabled = true;
+            selectEl.classList.add('opacity-60', 'cursor-not-allowed');
+            customInput.disabled = true;
+            customInput.classList.add('opacity-60', 'cursor-not-allowed');
+
+            document.getElementById('btn-lock-name').classList.add('hidden');
+            document.getElementById('name-locked-badge').classList.remove('hidden');
+            document.getElementById('name-help-text').textContent = '✨ 姓名設定完畢！冒險之旅準備開始！';
+
+            playSound('win');
+            showToast('🔒 名字已完成設定，無法再次修改囉！');
+        }
+
+        function updateGlobalProgressUI() {
+            document.getElementById('global-star-count').textContent = playerProfile.stars;
+            
+            const badgeList = document.getElementById('lobby-badges-list');
+            if (badgeList) {
+                badgeList.innerHTML = `
+                    <span class="${playerProfile.badges.pvz ? 'opacity-100 scale-110' : 'opacity-30'} transition-all" title="植物保衛戰">🌻</span>
+                    <span class="${playerProfile.badges.piano ? 'opacity-100 scale-110' : 'opacity-30'} transition-all" title="彩虹小鋼琴">🎹</span>
+                    <span class="${playerProfile.badges.balloon ? 'opacity-100 scale-110' : 'opacity-30'} transition-all" title="夢幻戳氣球">🎈</span>
+                `;
+            }
+
+            const pvzStatus = document.getElementById('badge-pvz-status');
+            if (pvzStatus) pvzStatus.textContent = playerProfile.badges.pvz ? '🏆 已通關 ⭐3' : '⭐ 3 顆星目標';
+            
+            const pianoStatus = document.getElementById('badge-piano-status');
+            if (pianoStatus) pianoStatus.textContent = playerProfile.badges.piano ? '🏆 已通關 ⭐3' : '⭐ 3 顆星目標';
+
+            const balloonStatus = document.getElementById('badge-balloon-status');
+            if (balloonStatus) balloonStatus.textContent = playerProfile.badges.balloon ? '🏆 已通關 ⭐3' : '⭐ 3 顆星目標';
+        }
+
+        function triggerVictory(gameKey, title, desc) {
+            if (!playerProfile.badges[gameKey]) {
+                playerProfile.badges[gameKey] = true;
+                playerProfile.stars += 3;
+                updateGlobalProgressUI();
+            }
+            playSound('win');
+            triggerConfettiBurst();
+
+            document.getElementById('victory-title').textContent = title;
+            document.getElementById('victory-desc').textContent = desc;
+
+            const modal = document.getElementById('modal-victory');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast-banner');
+            document.getElementById('toast-text').textContent = message;
+            toast.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-[-20px]');
+            toast.classList.add('opacity-100', 'translate-y-0');
+
+            setTimeout(() => {
+                toast.classList.remove('opacity-100', 'translate-y-0');
+                toast.classList.add('opacity-0', 'pointer-events-none', 'translate-y-[-20px]');
+            }, 2500);
+        }
+
+        function setAvatar(type, value) {
+            playSound('click');
+            playerProfile.avatarType = type;
+            playerProfile.avatarVal = value;
+            renderAvatarDisplay();
+            showToast('✨ 上傳成功！你現在是大冒險頭像囉！');
+            closeAvatarModal();
+        }
+
+        function renderAvatarDisplay() {
+            const isImg = playerProfile.avatarType === 'image';
+            const val = playerProfile.avatarVal;
+
+            // Lobby display
+            const lobbyDisp = document.getElementById('lobby-avatar-display');
+            if (isImg) {
+                lobbyDisp.innerHTML = `<img src="${val}" class="w-full h-full object-cover rounded-2xl shadow-inner" alt="Avatar">`;
+            } else {
+                lobbyDisp.innerHTML = `<span>${val}</span>`;
+            }
+
+            // Navbar display
+            const navDisp = document.getElementById('nav-avatar');
+            if (isImg) {
+                navDisp.innerHTML = `<img src="${val}" class="w-full h-full object-cover rounded-full" alt="Nav Avatar">`;
+            } else {
+                navDisp.innerHTML = `<span>${val}</span>`;
+            }
+
+            // Certificate display
+            const certAvatar = document.getElementById('cert-hero-avatar');
+            if (certAvatar) {
+                if (isImg) {
+                    certAvatar.outerHTML = `<img id="cert-hero-avatar" src="${val}" class="w-full h-full object-cover rounded-full" alt="Cert Avatar">`;
+                } else {
+                    certAvatar.outerHTML = `<span id="cert-hero-avatar" class="text-4xl md:text-5xl">${val}</span>`;
+                }
+            }
+        }
+
+        function openAvatarModal() {
+            playSound('click');
+            const modal = document.getElementById('modal-avatar');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeAvatarModal() {
+            const modal = document.getElementById('modal-avatar');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            processImageFile(file);
+        }
+
+        function handleDragOver(event) {
+            event.preventDefault();
+            const zone = document.getElementById('drag-drop-zone');
+            zone.classList.add('bg-amber-200', 'border-amber-600');
+        }
+
+        function handleDragLeave(event) {
+            event.preventDefault();
+            const zone = document.getElementById('drag-drop-zone');
+            zone.classList.remove('bg-amber-200', 'border-amber-600');
+        }
+
+        function handleFileDrop(event) {
+            event.preventDefault();
+            handleDragLeave(event);
+            if (event.dataTransfer.files && event.dataTransfer.files[0]) {
+                processImageFile(event.dataTransfer.files[0]);
+            }
+        }
+
+        function processImageFile(file) {
+            if (!file) return;
+            if (!file.type.startsWith('image/')) {
+                alert('請選擇有效的圖片檔案喔！');
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                setAvatar('image', e.target.result);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function showScreen(screenId) {
+            playSound('click');
+
+            // Stop PVZ loop if navigating away
+            if (screenId !== 'screen-pvz' && gameLoopId) {
+                cancelAnimationFrame(gameLoopId);
+                gameLoopId = null;
+            }
+            // Stop balloon spawning if navigating away
+            if (screenId !== 'screen-balloon' && balloonIntervalId) {
+                clearInterval(balloonIntervalId);
+                balloonIntervalId = null;
+            }
+
+            document.querySelectorAll('.screen-view, #screen-lobby').forEach(el => el.classList.add('hidden'));
+            document.getElementById(screenId).classList.remove('hidden');
+
+            document.getElementById('modal-victory').classList.add('hidden');
+            document.getElementById('modal-victory').classList.remove('flex');
+
+            // Navbar title sync
+            const titleMap = {
+                'screen-lobby': '🏰 奇幻遊樂園',
+                'screen-pvz': '🌱 植物保衛戰',
+                'screen-piano': '🎹 彩虹小鋼琴',
+                'screen-balloon': '🎈 夢幻戳氣球',
+                'screen-certificate': '🏆 榮譽大獎狀'
+            };
+            document.getElementById('nav-game-title').textContent = titleMap[screenId] || '🏰 奇幻遊樂園';
+
+            // Game init hooks
+            if (screenId === 'screen-pvz') initPvzGame();
+            if (screenId === 'screen-balloon') initBalloonGame();
+            if (screenId === 'screen-certificate') updateCertificateDisplay();
+        }
+
+        function updatePlayerName(newName) {
+            playerProfile.name = newName || '小勇士';
+            document.getElementById('nav-player-name').textContent = playerProfile.name;
+        }
+
+        function updateCertificateDisplay() {
+            renderAvatarDisplay();
+            document.getElementById('cert-hero-name').textContent = playerProfile.name;
+            document.getElementById('cert-star-count').textContent = playerProfile.stars;
+
+            const now = new Date();
+            document.getElementById('cert-date').textContent = `${now.getFullYear()}/${now.getMonth()+1}/${now.getDate()}`;
+
+            // Badge highlights
+            document.getElementById('cert-badge-pvz').style.opacity = playerProfile.badges.pvz ? '1' : '0.4';
+            document.getElementById('cert-badge-piano').style.opacity = playerProfile.badges.piano ? '1' : '0.4';
+            document.getElementById('cert-badge-balloon').style.opacity = playerProfile.badges.balloon ? '1' : '0.4';
+
+            triggerConfettiBurst();
+        }
+
+        /* ==========================================================================
+           3. MINI GAME 1: PLANTS VS MONSTERS (植物保衛戰)
+           ========================================================================== */
+        let pvzState = {
+            sun: 100,
+            selectedCard: null,
+            grid: Array(24).fill(null), // 4 rows x 6 cols
+            monsters: [],
+            peas: [],
+            floatingSuns: [],
+            mowers: [true, true, true, true],
+            wave: 1,
+            totalZombiesSpawned: 0,
+            maxZombies: 10,
+            lastSkySunTime: 0,
+            lastZombieSpawnTime: 0
+        };
+        let gameLoopId = null;
+
+        function initPvzGame() {
+            pvzState = {
+                sun: 100,
+                selectedCard: null,
+                grid: Array(24).fill(null),
+                monsters: [],
+                peas: [],
+                floatingSuns: [],
+                mowers: [true, true, true, true],
+                wave: 1,
+                totalZombiesSpawned: 0,
+                maxZombies: 8,
+                lastSkySunTime: Date.now(),
+                lastZombieSpawnTime: Date.now() + 3000
+            };
+
+            document.getElementById('sun-count').textContent = pvzState.sun;
+            document.getElementById('wave-text').textContent = '第 1 波';
+            document.getElementById('wave-progress-bar').style.width = '0%';
+
+            // Render Lawnmowers
+            for (let i = 0; i < 4; i++) {
+                const mowerEl = document.getElementById(`mower-${i}`);
+                if (mowerEl) mowerEl.style.opacity = '1';
+            }
+
+            // Build Lawn Grid DOM
+            const lawnGrid = document.getElementById('lawn-grid');
+            lawnGrid.innerHTML = '';
+            for (let r = 0; r < 4; r++) {
+                for (let c = 0; c < 6; c++) {
+                    const idx = r * 6 + c;
+                    const cell = document.createElement('div');
+                    cell.className = `lawn-cell ${ (r + c) % 2 === 0 ? 'lawn-cell-even' : 'lawn-cell-odd' } rounded-xl border border-emerald-300/40 flex items-center justify-center relative cursor-pointer transition-colors`;
+                    cell.dataset.idx = idx;
+                    cell.onclick = () => onLawnCellClick(r, c);
+                    lawnGrid.appendChild(cell);
+                }
+            }
+
+            document.getElementById('entity-layer').innerHTML = '';
+            selectCard(null);
+
+            if (gameLoopId) cancelAnimationFrame(gameLoopId);
+            let lastTick = Date.now();
+            
+            function loop() {
+                const now = Date.now();
+                const dt = (now - lastTick) / 1000;
+                lastTick = now;
+                
+                updatePvzLogic(dt);
+                renderPvzEntities();
+                
+                if (document.getElementById('screen-pvz').classList.contains('hidden')) return;
+                gameLoopId = requestAnimationFrame(loop);
+            }
+            gameLoopId = requestAnimationFrame(loop);
+        }
+
+        function selectCard(cardType) {
+            playSound('click');
+            pvzState.selectedCard = cardType;
+            document.querySelectorAll('.seed-card').forEach(el => {
+                el.classList.remove('ring-4', 'ring-yellow-400', 'scale-105');
+            });
+            if (cardType) {
+                const target = document.getElementById(`card-${cardType}`);
+                if (target) target.classList.add('ring-4', 'ring-yellow-400', 'scale-105');
+            }
+        }
+
+        function onLawnCellClick(r, c) {
+            const idx = r * 6 + c;
+            const currentPlant = pvzState.grid[idx];
+
+            if (pvzState.selectedCard === 'shovel') {
+                if (currentPlant) {
+                    playSound('plant');
+                    pvzState.grid[idx] = null;
+                    renderLawnPlants();
+                }
+                selectCard(null);
+                return;
+            }
+
+            if (!pvzState.selectedCard || currentPlant) return;
+
+            const costs = { sunflower: 50, peashooter: 100, wallnut: 50, cherrybomb: 150 };
+            const cost = costs[pvzState.selectedCard] || 0;
+
+            if (pvzState.sun < cost) {
+                showToast('☀️ 太陽能量不足喔！');
+                return;
+            }
+
+            pvzState.sun -= cost;
+            document.getElementById('sun-count').textContent = pvzState.sun;
+            playSound('plant');
+
+            if (pvzState.selectedCard === 'cherrybomb') {
+                pvzState.grid[idx] = { type: 'cherrybomb', row: r, col: c, timer: 1.2, exploding: false };
+                renderLawnPlants();
+            } else {
+                pvzState.grid[idx] = {
+                    type: pvzState.selectedCard,
+                    row: r, col: c,
+                    hp: pvzState.selectedCard === 'wallnut' ? 2000 : 600,
+                    maxHp: pvzState.selectedCard === 'wallnut' ? 2000 : 600,
+                    lastAction: Date.now()
+                };
+                renderLawnPlants();
+            }
+            selectCard(null);
+        }
+
+        function renderLawnPlants() {
+            const lawnGrid = document.getElementById('lawn-grid');
+            const cells = lawnGrid.children;
+            for (let i = 0; i < 24; i++) {
+                const plant = pvzState.grid[i];
+                const cell = cells[i];
+                if (!cell) continue;
+
+                if (plant) {
+                    if (plant.exploding) continue; // Skip re-render during explosion animation
+                    const plantIcons = { sunflower: '🌻', peashooter: '🌸', wallnut: '🌰', cherrybomb: '💣' };
+                    cell.innerHTML = `<div class="text-3xl md:text-4xl animate-plant-bounce">${plantIcons[plant.type]}</div>`;
+                } else {
+                    cell.innerHTML = '';
+                }
+            }
+        }
+
+        function spawnSkySun() {
+            if (pvzState.floatingSuns.length >= 3) return;
+            const sunId = 'sun_' + Date.now();
+            pvzState.floatingSuns.push({
+                id: sunId,
+                x: Math.random() * 70 + 15, // percentage
+                y: Math.random() * 50 + 20
+            });
+        }
+
+        function collectSun(sunId, e) {
+            if (e) {
+                e.stopPropagation();
+                e.preventDefault();
+            }
+            playSound('sun');
+            pvzState.sun += 25;
+            document.getElementById('sun-count').textContent = pvzState.sun;
+            pvzState.floatingSuns = pvzState.floatingSuns.filter(s => s.id !== sunId);
+            renderPvzEntities();
+        }
+
+        function updatePvzLogic(dt) {
+            const now = Date.now();
+
+            // Sky sun spawn every 8-10 seconds
+            if (now - pvzState.lastSkySunTime > 9000) {
+                spawnSkySun();
+                pvzState.lastSkySunTime = now;
+            }
+
+            // Zombie spawn timer (slow wave)
+            if (pvzState.totalZombiesSpawned < pvzState.maxZombies && now - pvzState.lastZombieSpawnTime > 7000) {
+                const r = Math.floor(Math.random() * 4);
+                const types = ['👾', '🧟', '🐛'];
+                pvzState.monsters.push({
+                    id: 'm_' + Date.now() + Math.random(),
+                    row: r,
+                    x: 100, // percentage from left
+                    hp: 80,
+                    icon: types[Math.floor(Math.random() * types.length)]
+                });
+                pvzState.totalZombiesSpawned++;
+                pvzState.lastZombieSpawnTime = now;
+
+                const progress = Math.min(100, (pvzState.totalZombiesSpawned / pvzState.maxZombies) * 100);
+                document.getElementById('wave-progress-bar').style.width = progress + '%';
+            }
+
+            // Plant actions (Sunflowers generate sun every 10s, Peashooters shoot every 2.5s)
+            for (let i = 0; i < 24; i++) {
+                const plant = pvzState.grid[i];
+                if (!plant) continue;
+
+                if (plant.type === 'sunflower' && now - plant.lastAction > 10000) {
+                    pvzState.sun += 25;
+                    document.getElementById('sun-count').textContent = pvzState.sun;
+                    playSound('sun');
+                    plant.lastAction = now;
+                } else if (plant.type === 'peashooter' && now - plant.lastAction > 2500) {
+                    // Check if monster in same row ahead
+                    const hasTarget = pvzState.monsters.some(m => m.row === plant.row && m.x > (plant.col / 6) * 100);
+                    if (hasTarget) {
+                        pvzState.peas.push({
+                            id: 'p_' + Date.now() + Math.random(),
+                            row: plant.row,
+                            x: (plant.col / 6) * 100 + 8
+                        });
+                        playSound('shoot');
+                        plant.lastAction = now;
+                    }
+                } else if (plant.type === 'cherrybomb') {
+                    plant.timer -= dt;
+                    if (plant.timer <= 0 && !plant.exploding) {
+                        plant.exploding = true;
+                        playSound('boom');
+                        // Explosion damages adjacent zombies
+                        pvzState.monsters.forEach(m => {
+                            if (Math.abs(m.row - plant.row) <= 1 && Math.abs((m.x / 100 * 6) - plant.col) <= 1.5) {
+                                m.hp -= 300;
+                            }
+                        });
+                        // Display explosion visual effect before clearing
+                        const cell = document.getElementById('lawn-grid')?.children[i];
+                        if (cell) cell.innerHTML = '<div class="text-4xl animate-bounce">💥</div>';
+                        setTimeout(() => {
+                            pvzState.grid[i] = null;
+                            renderLawnPlants();
+                        }, 600);
+                    }
+                }
+            }
+
+            // Update Peas (Move right)
+            pvzState.peas.forEach((p, pIdx) => {
+                p.x += dt * 35; // speed
+                // Hit check
+                pvzState.monsters.forEach(m => {
+                    if (m.row === p.row && Math.abs(m.x - p.x) < 5) {
+                        m.hp -= 30;
+                        p.hit = true;
+                        playSound('pop');
+                    }
+                });
+            });
+            pvzState.peas = pvzState.peas.filter(p => !p.hit && p.x < 105);
+
+            // Update Zombies (Move left - 10s per grid cell -> ~1.66% per sec)
+            pvzState.monsters.forEach(m => {
+                const gridCol = Math.floor((m.x / 100) * 6);
+                const plantIdx = m.row * 6 + gridCol;
+                const plant = pvzState.grid[plantIdx];
+
+                if (plant && plant.type !== 'cherrybomb' && !plant.exploding && Math.abs((m.x / 100 * 6) - gridCol) < 0.2) {
+                    // Eat plant very slowly (10 HP/sec) so plants don't disappear quickly
+                    plant.hp -= dt * 10;
+                    if (plant.hp <= 0) {
+                        pvzState.grid[plantIdx] = null;
+                        renderLawnPlants();
+                    }
+                } else {
+                    m.x -= dt * 1.66; // 10s per grid cell
+                }
+
+                // Check lawnmower safety net
+                if (m.x <= 2) {
+                    if (pvzState.mowers[m.row]) {
+                        pvzState.mowers[m.row] = false;
+                        document.getElementById(`mower-${m.row}`).style.opacity = '0.2';
+                        playSound('mower');
+                        m.hp = -999; // Clear row
+                    } else {
+                        m.x = 2; // Keep at safe edge, no punishment
+                    }
+                }
+            });
+
+            // Filter dead monsters
+            pvzState.monsters = pvzState.monsters.filter(m => m.hp > 0);
+
+            // Victory check
+            if (pvzState.totalZombiesSpawned >= pvzState.maxZombies && pvzState.monsters.length === 0) {
+                if (gameLoopId) cancelAnimationFrame(gameLoopId);
+                gameLoopId = null;
+                triggerVictory('pvz', '🌱 花園大獲全勝！', '你成功保衛了美麗的花園！獲得 3 顆星星！');
+            }
+        }
+
+        function renderPvzEntities() {
+            const layer = document.getElementById('entity-layer');
+            let html = '';
+
+            // Render Floating Suns (High z-index, large tap target)
+            pvzState.floatingSuns.forEach(s => {
+                html += `
+                    <div onclick="collectSun('${s.id}', event)" 
+                         onpointerdown="collectSun('${s.id}', event)"
+                         style="left: ${s.x}%; top: ${s.y}%;" 
+                         class="absolute z-[500] pointer-events-auto cursor-pointer p-3 -translate-x-1/2 -translate-y-1/2 hover:scale-125 transition-transform active:scale-90">
+                        <div class="w-14 h-14 md:w-16 md:h-16 rounded-full bg-yellow-300 border-4 border-amber-400 shadow-[0_0_18px_rgba(250,204,21,0.9)] flex items-center justify-center text-3xl md:text-4xl animate-bounce-slow">
+                            ☀️
+                        </div>
+                    </div>
+                `;
+            });
+
+            // Render Peas
+            pvzState.peas.forEach(p => {
+                const topPercent = (p.row * 25) + 12;
+                html += `
+                    <div style="left: ${p.x}%; top: ${topPercent}%;" class="absolute -translate-x-1/2 -translate-y-1/2">
+                        <div class="w-4 h-4 md:w-5 md:h-5 bg-emerald-400 border-2 border-emerald-200 rounded-full shadow-md"></div>
+                    </div>
+                `;
+            });
+
+            // Render Monsters
+            pvzState.monsters.forEach(m => {
+                const topPercent = (m.row * 25) + 8;
+                html += `
+                    <div style="left: ${m.x}%; top: ${topPercent}%;" class="absolute -translate-x-1/2 -translate-y-1/2 text-3xl md:text-4xl animate-monster-walk">
+                        ${m.icon}
+                    </div>
+                `;
+            });
+
+            layer.innerHTML = html;
+        }
+
+        /* ==========================================================================
+           4. MINI GAME 2: RAINBOW PIANO (彩虹小鋼琴)
+           ========================================================================== */
+        let pianoState = {
+            mode: 'free', // 'star', 'joy', 'free'
+            songNotes: [],
+            currentStep: 0
+        };
+
+        const SONGS = {
+            star: [0, 0, 4, 4, 5, 5, 4, 3, 3, 2, 2, 1, 1, 0],
+            joy: [2, 2, 3, 4, 4, 3, 2, 1, 0, 0, 1, 2, 2, 1, 1]
+        };
+        const NOTE_NAMES = ['C4 (Do)', 'D4 (Re)', 'E4 (Mi)', 'F4 (Fa)', 'G4 (Sol)', 'A4 (La)', 'B4 (Ti)', 'C5 (Do)'];
+
+        function startPianoSong(songKey) {
+            playSound('click');
+            pianoState.mode = songKey;
+            pianoState.currentStep = 0;
+            pianoState.songNotes = SONGS[songKey] || [];
+
+            document.querySelectorAll('.piano-key').forEach(k => k.classList.remove('ring-4', 'ring-yellow-300', 'scale-105'));
+
+            if (songKey === 'free') {
+                document.getElementById('piano-target-display').textContent = '🌈 自由彈奏模式 🎵';
+            } else {
+                highlightPianoTargetKey();
+            }
+        }
+
+        function highlightPianoTargetKey() {
+            document.querySelectorAll('.piano-key').forEach(k => k.classList.remove('ring-4', 'ring-yellow-300', 'scale-105'));
+            const targetNoteIdx = pianoState.songNotes[pianoState.currentStep];
+            if (targetNoteIdx !== undefined) {
+                const keyEl = document.getElementById(`key-${targetNoteIdx}`);
+                if (keyEl) keyEl.classList.add('ring-4', 'ring-yellow-300', 'scale-105');
+                document.getElementById('piano-target-display').textContent = `請彈奏：${NOTE_NAMES[targetNoteIdx]} 🎵`;
+            }
+        }
+
+        function playPianoKey(keyIdx) {
+            playSound('piano', keyIdx);
+
+            if (pianoState.mode !== 'free' && pianoState.songNotes.length > 0) {
+                const targetIdx = pianoState.songNotes[pianoState.currentStep];
+                if (keyIdx === targetIdx) {
+                    pianoState.currentStep++;
+                    if (pianoState.currentStep >= pianoState.songNotes.length) {
+                        triggerVictory('piano', '🎹 小小鋼琴家誕生！', '你成功完整彈奏了美妙樂曲！獲得 3 顆星星！');
+                    } else {
+                        highlightPianoTargetKey();
+                    }
+                }
+            }
+        }
+
+        /* ==========================================================================
+           5. MINI GAME 3: BALLOON POP PARTY (夢幻戳氣球)
+           ========================================================================== */
+        let balloonState = {
+            score: 0,
+            targetScore: 15
+        };
+        let balloonIntervalId = null;
+
+        function initBalloonGame() {
+            balloonState.score = 0;
+            document.getElementById('balloon-score').textContent = '0';
+            const stage = document.getElementById('balloon-stage');
+            stage.innerHTML = '';
+
+            if (balloonIntervalId) clearInterval(balloonIntervalId);
+            balloonIntervalId = setInterval(spawnBalloon, 1000);
+        }
+
+        function spawnBalloon() {
+            const stage = document.getElementById('balloon-stage');
+            if (!stage || stage.children.length >= 8) return;
+
+            const colors = ['bg-rose-400', 'bg-sky-400', 'bg-amber-400', 'bg-emerald-400', 'bg-purple-400', 'bg-pink-400'];
+            const randomColor = colors[Math.floor(Math.random() * colors.length)];
+            const randomX = Math.random() * 80 + 5; // %
+            const speed = Math.random() * 4 + 4; // seconds to rise
+
+            const balloon = document.createElement('div');
+            balloon.className = `absolute w-16 h-20 md:w-20 md:h-24 ${randomColor} rounded-full shadow-lg border-2 border-white/60 flex items-center justify-center cursor-pointer transition-transform hover:scale-110 active:scale-95`;
+            balloon.style.left = randomX + '%';
+            balloon.style.bottom = '-100px';
+            balloon.style.transition = `bottom ${speed}s linear`;
+
+            balloon.innerHTML = `
+                <div class="text-2xl opacity-80 pointer-events-none">✨</div>
+                <div class="absolute -bottom-3 left-1/2 -translate-x-1/2 w-1.5 h-4 bg-amber-800/40"></div>
+            `;
+
+            balloon.onclick = (e) => popBalloon(balloon, e);
+            stage.appendChild(balloon);
+
+            setTimeout(() => {
+                balloon.style.bottom = '460px';
+            }, 50);
+
+            setTimeout(() => {
+                if (balloon.parentNode === stage) stage.removeChild(balloon);
+            }, speed * 1000);
+        }
+
+        function popBalloon(balloonEl, e) {
+            if (e) e.stopPropagation();
+            playSound('pop');
+
+            balloonState.score++;
+            document.getElementById('balloon-score').textContent = balloonState.score;
+
+            if (balloonEl.parentNode) balloonEl.parentNode.removeChild(balloonEl);
+
+            if (balloonState.score >= balloonState.targetScore) {
+                if (balloonIntervalId) clearInterval(balloonIntervalId);
+                balloonIntervalId = null;
+                triggerVictory('balloon', '🎈 氣球達人認證！', '你成功戳破了 15 個飄浮氣球！獲得 3 顆星星！');
+            }
+        }
+
+        /* ==========================================================================
+           6. CONFETTI FIREWORKS ENGINE
+           ========================================================================== */
+        const canvas = document.getElementById('confetti-canvas');
+        const ctx = canvas.getContext('2d');
+        let confettiParticles = [];
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        function triggerConfettiBurst() {
+            const colors = ['#22c55e', '#eab308', '#ec4899', '#3b82f6', '#a855f7', '#f97316'];
+            for (let i = 0; i < 90; i++) {
+                confettiParticles.push({
+                    x: canvas.width / 2, y: canvas.height / 2,
+                    vx: (Math.random() - 0.5) * 16, vy: (Math.random() - 0.7) * 16,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    size: Math.random() * 8 + 6, rotation: Math.random() * 360, rotationSpeed: (Math.random() - 0.5) * 10
+                });
+            }
+        }
+
+        function updateConfetti() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            confettiParticles.forEach((p, idx) => {
+                p.x += p.vx; p.y += p.vy; p.vy += 0.3; p.rotation += p.rotationSpeed;
+                ctx.save(); ctx.translate(p.x, p.y); ctx.rotate((p.rotation * Math.PI) / 180);
+                ctx.fillStyle = p.color; ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+                ctx.restore();
+                if (p.y > canvas.height + 20) confettiParticles.splice(idx, 1);
+            });
+            requestAnimationFrame(updateConfetti);
+        }
+        updateConfetti();
+
+        /* Initialization on Window Load */
+        window.onload = () => {
+            updateGlobalProgressUI();
+            renderAvatarDisplay();
+        };
+    </script>
+</body>
+</html>
